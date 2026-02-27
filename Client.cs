@@ -27,12 +27,11 @@ namespace server
             public TcpClient socket;
             private readonly int id;
             private NetworkStream stream;
+            private Packet receivedData;
+
             private byte[] receiveBuffer;
 
-            public TCP(int _id)
-            {
-                id = _id;
-            }
+            public TCP(int _id) => id = _id;
 
             public void Connect(TcpClient _socket)
             {
@@ -42,6 +41,7 @@ namespace server
 
                 stream = socket.GetStream();
 
+                receivedData = new Packet();
                 receiveBuffer = new byte[dataBufferSize];
 
                 stream.BeginRead(receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
@@ -80,7 +80,7 @@ namespace server
                     byte[] data = new byte[byteLength];
                     Array.Copy(receiveBuffer, data, byteLength);
 
-                    //TODO handle data
+                    receivedData.Reset(HandleData(data));
                     stream.BeginRead(receiveBuffer, 0, dataBufferSize, ReceiveCallback, null);
                 }
                 catch (Exception ex)
@@ -89,6 +89,46 @@ namespace server
                     //TODO disconnect
                 }
             }
+
+            private bool HandleData(byte[] data)
+            {
+                int _packetLength = 0;
+
+                receivedData.SetBytes(data);
+
+                if (receivedData.UnreadLength() >= 4)
+                {
+                    _packetLength = receivedData.ReadInt();
+                    if (_packetLength <= 0)
+                        return true;
+                }
+
+                while (_packetLength > 0 && _packetLength <= receivedData.UnreadLength())
+                {
+                    byte[] _packetBytes = receivedData.ReadBytes(_packetLength);
+                    Threading.ExecuteOnMainThread(() =>
+                    {
+                        using (Packet _packet = new Packet(_packetBytes))
+                        {
+                            int _packetId = _packet.ReadInt();
+                            Server.packetHandlers[_packetId](id, _packet);
+                        }
+                    });
+
+                    _packetLength = 0;
+
+                    if (receivedData.UnreadLength() >= 4)
+                    {
+                        _packetLength = receivedData.ReadInt();
+                        if (_packetLength <= 0)
+                            return true;
+                    }
+                }
+
+                return _packetLength <= 1;
+            }
+
         }
+    
     }
 }

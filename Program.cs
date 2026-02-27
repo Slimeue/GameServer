@@ -2,13 +2,12 @@
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.Title = "Server";
-
             Server.Start(10, 26950);
-
-            Console.ReadKey();
+            GameLogic gameLogic = new GameLogic();
+            await gameLogic.GameLoopAsync(); // properly awaited
         }
     }
 }

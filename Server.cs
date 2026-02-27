@@ -23,7 +23,9 @@ namespace server
         {
             MaxPlayers = maxPlayers;
             Port = port;
+
             Console.WriteLine($"Starting server on port {Port}...");
+
             InitializeServerData();
 
             tcpListener = new TcpListener(IPAddress.Any, Port);
